@@ -157,8 +157,8 @@ function insSSL()
 function usage()
 {
 	echo "Highly recommend set your sudo NOPASSWD via visudo!"
-	echo "installSRV [devtool|web|nextcloud]"
-	echo "installSRV ssl domainname"
+	echo "${0} [ devtool | web | nextcloud ]"
+	echo "${0} ssl domainname"
 }
 
 case ${1} in
