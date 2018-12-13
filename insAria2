@@ -1,0 +1,125 @@
+#!/bin/bash
+# Description:
+#  Install  Aria2 and yaaw
+# TODO:
+# 
+# Version:
+#  20181212 - First release
+
+YOURIP=$(ip route get 8.8.8.8 2>/dev/null | awk '{print $NF; exit}')
+type apt-get >& /dev/null
+if [ $? -eq 0 ]; then
+	ins="apt-get"
+fi
+type yum >& /dev/null
+if [ $? -eq 0 ]; then
+	ins="yum"
+fi
+if [ -z ${ins} ]; then
+	echo "Can't determine your package manage, quitting..."
+	exit 1
+fi
+
+function dev_tool()
+{
+        echo "Installing develop tools ..."
+        sudo ${ins} install -y git autoconf automake libtool screen
+        if [ ${ins}=="yum" ]; then
+        	sudo ${ins} install -y epel-release yum-utils unzip curl wget bash-completion policycoreutils-python mlocate bzip2
+        fi
+}
+
+function addCron()
+{
+        crontab -l > ${HOME}/ctab
+        tmark=$(date +%Y%m%d%H%M%S)
+        echo "#At ${tmark} added" >> ${HOME}/ctab
+        sed -i "s/\#At ${tmark} added/\#At ${tmark} added\n ${1//\//\\/}/g" ${HOME}/ctab
+        crontab ${HOME}/ctab
+        rm ${HOME}/ctab
+}
+
+function insAria2()
+{
+	echo "Now installing Aria2 service ..."
+	sudo ${ins} install -y aria2
+	cd
+	if [ ! -d Downloads/ ]; then
+		mkdir Downloads/
+	fi
+	mkdir -p .config/aria2/
+	cd .config/aria2/
+	touch aria2.session
+	if [ -z ${1} ]; then
+		token="secret"
+	else
+		token=${1}
+	fi
+cat > aria2.conf << EOF
+	enable-rpc=true
+	rpc-allow-origin-all=true
+	rpc-listen-all=true
+	rpc-secret=${token}
+	max-concurrent-downloads=5
+	continue=true
+	max-connection-per-server=5
+	min-split-size=10M
+	split=10
+	max-overall-download-limit=0
+	max-download-limit=0
+	max-overall-upload-limit=0
+	max-upload-limit=0
+	input-file=${HOME}/.config/aria2/aria2.session
+	save-session=${HOME}/.config/aria2/aria2.session
+	save-session-interval=60
+	dir=${HOME}/Downloads
+	file-allocation=prealloc
+	follow-torrent=true
+	enable-dht=false
+	enable-peer-exchange=false
+	bt-enable-lpd=false
+	bt-require-crypto=true
+	seed-ratio=0
+	force-save=true
+	bt-hash-check-seed=true
+	bt-seed-unverified=true
+	bt-save-metadata=true
+EOF
+	aria2c --conf-path=${HOME}/.config/aria2/aria2.conf -D
+	addCron "@reboot aria2c --conf-path=${HOME}/.config/aria2/aria2.conf -D"
+	echo -e "All your downloads will go ${HOME}/Downloads by default\nEdit ${HOME}/.config/aria2/aria2.conf to set default values\nAria2 is running now! Install YAAW for the Web Interface!"
+}
+
+function insYAAW()
+{
+	echo "Now installing YAAW (Web Interface of Aria2) service ..."
+	if [ -d /var/www/html/ ]; then
+		git clone https://github.com/binux/yaaw /var/www/html/aria2
+		sudo sed -i "s/location.host.split/\"token:secret@\"+location.host.split/g" /var/www/html/aria2/js/yaaw.js
+		echo "Open http://${YOURIP}/aria2/ to verify Aria2"
+		echo "If you have set a safer TOKEN, make sure change YAAW settings JSON-RPC Path 'token:secret' to your own"
+	else
+		echo "Web service not found!"
+	fi
+}
+
+function usage()
+{
+	echo "${0} [ devtool | aria [YOUR TOKEN]  | yaaw ]"
+	echo "    devtool : In case don't have dependent tools on your system"
+	echo "    aria [YOUR TOKEN] : Install Aria2, [YOUR TOKEN] is kind of password for the web interface connecting to the service, by default YOUR TOKEN is set to 'secret', but MAKE A SAFE ONE if open YAAW to internet"
+	echo "    yaaw: Web Interface of Aria2"
+}
+
+case ${1} in
+	'devtool')
+	dev_tool ;;
+	'aria')
+	insAria2 ${2} ;;
+	'yaaw')
+	insYAAW ;;
+	*)
+	usage ;;
+esac
+
+exit 0
