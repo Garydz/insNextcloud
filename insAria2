@@ -94,7 +94,7 @@ function insYAAW()
 {
 	echo "Now installing YAAW (Web Interface of Aria2) service ..."
 	if [ -d /var/www/html/ ]; then
-		git clone https://github.com/binux/yaaw /var/www/html/aria2
+		sudo git clone https://github.com/binux/yaaw /var/www/html/aria2
 		sudo sed -i "s/location.host.split/\"token:secret@\"+location.host.split/g" /var/www/html/aria2/js/yaaw.js
 		echo "Open http://${YOURIP}/aria2/ to verify Aria2"
 		echo "If you have set a safer TOKEN, make sure change YAAW settings JSON-RPC Path 'token:secret' to your own"
